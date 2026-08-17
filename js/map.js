@@ -33,10 +33,6 @@ export class SettlementMap {
 
     // Offline warning UI binding
     const warningEl = document.getElementById('map-offline-warning');
-    
-    tileLayer.on('tileerror', () => {
-      if (warningEl) warningEl.classList.remove('hidden');
-    });
 
     if (!navigator.onLine && warningEl) {
       warningEl.classList.remove('hidden');
