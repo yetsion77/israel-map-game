@@ -81,7 +81,13 @@ export class SettlementMap {
     });
 
     const marker = L.marker([lat, lon], { icon: customIcon }).addTo(this.map);
+    
+    if (options.onClick) {
+      marker.on('click', options.onClick);
+    }
+    
     this.markers.push(marker);
+    return marker;
   }
 
   addConnection(fromCoords, toCoords, color = 'rgba(239, 68, 68, 0.6)') {

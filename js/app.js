@@ -1,10 +1,16 @@
-import { settlements } from './data.js';
+import { settlements, springs } from './data.js';
 import { soundManager } from './sound.js';
 import { SettlementMap } from './map.js';
 
 class GameApp {
   constructor() {
     this.map = null;
+    this.explorerMap = null;
+    
+    // Navigation & Category State
+    this.currentTab = 'game'; // 'game' or 'explorer'
+    this.category = 'settlements'; // 'settlements' or 'springs'
+    this.activeDataset = settlements;
     
     // Game State
     this.gameMode = 'identify'; // 'identify', 'north_south', 'marathon'
@@ -34,6 +40,7 @@ class GameApp {
     this.screens.welcome = document.getElementById('screen-welcome');
     this.screens.playing = document.getElementById('screen-playing');
     this.screens.gameover = document.getElementById('screen-gameover');
+    this.screens.explorer = document.getElementById('screen-explorer');
 
     // Initialize Map
     this.map = new SettlementMap('map-container');
@@ -44,6 +51,59 @@ class GameApp {
   }
 
   setupUIEventListeners() {
+    // Tab Navigation Buttons
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        soundManager.playClick();
+        const targetTab = e.currentTarget.dataset.tab;
+        if (targetTab === this.currentTab) return;
+
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+
+        this.currentTab = targetTab;
+        
+        if (this.currentTab === 'game') {
+          document.getElementById('screen-explorer').classList.add('hidden');
+          if (this.timerInterval !== null || (this.lives > 0 && !this.screens.playing.classList.contains('hidden'))) {
+            this.screens.playing.classList.remove('hidden');
+            setTimeout(() => this.map.resize(), 100);
+          } else if (!this.screens.gameover.classList.contains('hidden')) {
+            this.screens.gameover.classList.remove('hidden');
+          } else {
+            this.screens.welcome.classList.remove('hidden');
+          }
+        } else {
+          this.screens.welcome.classList.add('hidden');
+          this.screens.playing.classList.add('hidden');
+          this.screens.gameover.classList.add('hidden');
+          
+          document.getElementById('screen-explorer').classList.remove('hidden');
+          this.initExplorer();
+        }
+      });
+    });
+
+    // Category Selector Buttons
+    document.querySelectorAll('.btn-cat').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        soundManager.playClick();
+        this.category = e.currentTarget.dataset.category;
+        
+        document.querySelectorAll('.btn-cat').forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+
+        this.activeDataset = this.category === 'settlements' ? settlements : springs;
+
+        const diffGroup = document.getElementById('diff-selection-group');
+        if (this.category === 'springs') {
+          diffGroup.style.display = 'none';
+        } else {
+          diffGroup.style.display = 'block';
+        }
+      });
+    });
+
     // Mode Selection Buttons
     document.querySelectorAll('.btn-mode').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -185,6 +245,9 @@ class GameApp {
 
   // Filters settlements list based on game mode & difficulty setting
   getFilteredSettlements() {
+    if (this.category === 'springs') {
+      return springs;
+    }
     // Easy difficulty filters to large cities
     if (this.difficulty === 'easy') {
       return settlements.filter(s => s.type === 'city' && s.description !== undefined);
@@ -205,12 +268,8 @@ class GameApp {
     container.innerHTML = '';
 
     const filtered = this.getFilteredSettlements();
-    if (filtered.length < 5) {
-      // Fallback in case list is too small
-      alert("שגיאה בסינון יישובים. נשתמש בכל היישובים.");
-    }
-
-    const pool = filtered.length >= 5 ? filtered : settlements;
+    const fallbackDataset = this.category === 'springs' ? springs : settlements;
+    const pool = filtered.length >= 5 ? filtered : fallbackDataset;
 
     if (this.gameMode === 'identify' || this.gameMode === 'marathon') {
       this.generateIdentifyQuestion(pool, container);
@@ -247,7 +306,9 @@ class GameApp {
     // Build buttons UI
     const prompt = document.createElement('h2');
     prompt.className = 'game-prompt';
-    prompt.innerText = 'איזה יישוב ממוקם בנקודה המסומנת?';
+    prompt.innerText = this.category === 'springs' 
+      ? 'איזה מעיין ממוקם בנקודה המסומנת?' 
+      : 'איזה יישוב ממוקם בנקודה המסומנת?';
     container.appendChild(prompt);
 
     const grid = document.createElement('div');
@@ -365,7 +426,9 @@ class GameApp {
     // Prompt UI
     const prompt = document.createElement('h2');
     prompt.className = 'game-prompt';
-    prompt.innerText = `סדרו את היישובים מצפון לדרום (לחצו לפי הסדר מהכי צפוני להכי דרומי):`;
+    prompt.innerText = this.category === 'springs'
+      ? 'סדרו את המעיינות מצפון לדרום (לחצו לפי הסדר מהכי צפוני להכי דרומי):'
+      : 'סדרו את היישובים מצפון לדרום (לחצו לפי הסדר מהכי צפוני להכי דרומי):';
     container.appendChild(prompt);
 
     // List of option buttons to click in order
@@ -507,6 +570,135 @@ class GameApp {
     }
 
     this.showScreen('gameover');
+  }
+
+  /* --- EXPLORER (SPRING FINDER) METHODS --- */
+  initExplorer() {
+    if (!this.explorerMap) {
+      this.explorerMap = new SettlementMap('explorer-map-container');
+      this.setupExplorerEventListeners();
+    }
+    
+    this.renderExplorerListAndMarkers();
+    setTimeout(() => this.explorerMap.resize(), 100);
+  }
+
+  setupExplorerEventListeners() {
+    const searchInput = document.getElementById('explorer-search-input');
+    const regionFilters = document.querySelectorAll('.btn-filter');
+    const closeDrawer = document.getElementById('btn-close-drawer');
+
+    searchInput.addEventListener('input', () => {
+      this.renderExplorerListAndMarkers();
+    });
+
+    regionFilters.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        soundManager.playClick();
+        regionFilters.forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        this.renderExplorerListAndMarkers();
+      });
+    });
+
+    closeDrawer.addEventListener('click', () => {
+      soundManager.playClick();
+      document.getElementById('spring-detail-drawer').classList.add('hidden');
+      document.querySelectorAll('.spring-item').forEach(item => item.classList.remove('selected'));
+    });
+  }
+
+  renderExplorerListAndMarkers() {
+    const query = document.getElementById('explorer-search-input').value.trim().toLowerCase();
+    const activeFilter = document.querySelector('.btn-filter.active').dataset.filter;
+    const listContainer = document.getElementById('springs-list');
+    const countElement = document.getElementById('springs-count');
+
+    // Filter springs based on search and region
+    const filteredSprings = springs.filter(s => {
+      const nameMatch = s.name.toLowerCase().includes(query);
+      const regionMatch = activeFilter === 'all' || s.region === activeFilter;
+      return nameMatch && regionMatch;
+    });
+
+    countElement.innerText = `נמצאו ${filteredSprings.length} מעיינות`;
+
+    // Clear map and list
+    this.explorerMap.clear();
+    listContainer.innerHTML = '';
+
+    if (filteredSprings.length === 0) {
+      listContainer.innerHTML = '<div class="no-results" style="text-align:center; padding:20px; color:var(--text-muted);">לא נמצאו מעיינות מתאימים</div>';
+      return;
+    }
+
+    filteredSprings.forEach(s => {
+      // Create list item
+      const item = document.createElement('div');
+      item.className = 'spring-item';
+      item.dataset.id = s.id;
+      item.innerHTML = `
+        <div class="spring-info">
+          <span class="spring-name">${s.name}</span>
+          <div class="spring-meta">
+            <span class="badge-type">מעיין</span>
+            <span class="badge-region">${this.getRegionLabel(s.region)}</span>
+          </div>
+        </div>
+        <span class="spring-arrow">◀</span>
+      `;
+
+      item.addEventListener('click', () => {
+        this.selectExplorerSpring(s, item);
+      });
+
+      listContainer.appendChild(item);
+
+      // Add to map
+      this.explorerMap.addMarker(s.lat, s.lon, {
+        color: '#0284c7', // Sky Blue
+        pulse: false,
+        onClick: () => {
+          this.selectExplorerSpring(s, item);
+        }
+      });
+    });
+  }
+
+  selectExplorerSpring(s, listItem) {
+    soundManager.playClick();
+    
+    document.querySelectorAll('.spring-item').forEach(item => item.classList.remove('selected'));
+    if (listItem) {
+      listItem.classList.add('selected');
+      listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    this.explorerMap.focusOnCoordinates([s], 13);
+
+    const drawer = document.getElementById('spring-detail-drawer');
+    document.getElementById('drawer-title').innerText = s.name;
+    document.getElementById('drawer-region').innerText = this.getRegionLabel(s.region);
+    document.getElementById('drawer-desc').innerText = s.description || 'אין תיאור זמין עבור מעיין זה.';
+    
+    const wazeUrl = `https://waze.com/ul?ll=${s.lat},${s.lon}&navigate=yes`;
+    const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`;
+    
+    document.getElementById('link-waze').setAttribute('href', wazeUrl);
+    document.getElementById('link-google-maps').setAttribute('href', gmapsUrl);
+    
+    drawer.classList.remove('hidden');
+  }
+
+  getRegionLabel(region) {
+    switch (region) {
+      case 'north': return 'צפון וגולן';
+      case 'center': return 'מרכז ושרון';
+      case 'jerusalem': return 'ירושלים';
+      case 'judea_samaria': return 'יו"ש ובקעה';
+      case 'south': return 'דרום ונגב';
+      default: return region;
+    }
   }
 }
 
