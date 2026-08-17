@@ -98,11 +98,7 @@ class GameApp {
       btnMute.classList.toggle('muted', isMuted);
     });
 
-    // Canvas Tap Intercept (for click feedback on map if needed)
-    this.map.canvas.addEventListener('click', (e) => {
-      if (this.screens.playing.classList.contains('hidden')) return;
-      // Do something on map tap if needed (e.g. check proximity click in future updates)
-    });
+
   }
 
   showScreen(screenName) {
