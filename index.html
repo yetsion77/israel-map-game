@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>מפת ישראל: משחק היישובים | משחק גיאוגרפי למובייל</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="משחק גיאוגרפיה אינטראקטיבי ומעוצב לנייד שיעזור לכם להכיר את מפת יישובי ישראל. שחקו בזיהוי יישובים במפה, סידור יישובים מצפון לדרום, ומרתוני זמן.">
+  <meta name="keywords" content="משחק מפת ישראל, יישובי ישראל, גיאוגרפיה ישראל, ללמוד יישובים, משחק חינוכי, מפת קנבס">
+  <meta name="author" content="yetsion77">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="מפת ישראל: משחק היישובים">
+  <meta property="og:description" content="משחק גיאוגרפיה אינטראקטיבי ומעוצב לנייד לתרגול וזיהוי יישובי ישראל במפה.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts: Outfit & Assistant (Hebrew support) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;800&family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet Map Library -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Floating Utility Header -->
+  <header class="app-header">
+    <div class="logo">
+      <span class="logo-accent">מפת</span> ישראל
+    </div>
+    <button id="btn-mute" class="btn-icon" aria-label="השתק צליל">
+      <i class="icon-unmute">🔊</i>
+    </button>
+  </header>
+
+  <main class="game-container">
+    
+    <!-- SCREEN 1: WELCOME / MENU -->
+    <section id="screen-welcome" class="screen">
+      <div class="welcome-card card-glow">
+        <h1 class="welcome-title">משחק היישובים</h1>
+        <p class="welcome-subtitle">כמה טוב אתם מכירים את מפת ארץ ישראל?</p>
+        
+        <!-- Game Modes Section -->
+        <div class="setup-group">
+          <h3>בחרו מצב משחק:</h3>
+          <div class="mode-selector">
+            <button class="btn-mode active" data-mode="identify">
+              <span class="mode-icon">📍</span>
+              <span class="mode-title">זהו את היישוב</span>
+              <span class="mode-desc">סמנו את השם הנכון מתוך 4 אפשרויות</span>
+            </button>
+            <button class="btn-mode" data-mode="north_south">
+              <span class="mode-icon">🧭</span>
+              <span class="mode-title">מצפון לדרום</span>
+              <span class="mode-desc">סדרו 2 או 3 יישובים לפי מיקומם הגיאוגרפי</span>
+            </button>
+            <button class="btn-mode" data-mode="marathon">
+              <span class="mode-icon">⚡</span>
+              <span class="mode-title">מרתון זמן</span>
+              <span class="mode-desc">זהו כמה שיותר יישובים ב-60 שניות</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Difficulty Selection -->
+        <div class="setup-group">
+          <h3>רמת קושי:</h3>
+          <div class="difficulty-selector">
+            <button class="btn-diff" data-diff="easy">קל (ערים גדולות)</button>
+            <button class="btn-diff active" data-diff="medium">בינוני (מעורב)</button>
+            <button class="btn-diff" data-diff="hard">קשה (קיבוצים ומושבים)</button>
+          </div>
+        </div>
+
+        <button id="btn-start" class="btn-primary">התחילו לשחק</button>
+        
+        <!-- Scoreboard Stats -->
+        <div class="highscore-board">
+          <h4>שיאים אישיים:</h4>
+          <div class="hs-grid">
+            <div class="hs-item">
+              <span class="hs-label">זיהוי:</span>
+              <span id="val-hs-identify" class="hs-val">0</span>
+            </div>
+            <div class="hs-item">
+              <span class="hs-label">צפון/דרום:</span>
+              <span id="val-hs-ns" class="hs-val">0</span>
+            </div>
+            <div class="hs-item">
+              <span class="hs-label">מרתון:</span>
+              <span id="val-hs-marathon" class="hs-val">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 2: GAMEPLAY -->
+    <section id="screen-playing" class="screen hidden">
+      <!-- HUD / Heads Up Display -->
+      <div class="game-hud">
+        <div class="hud-item">
+          <span class="hud-label">ניקוד:</span>
+          <span id="val-score" class="hud-val">0</span>
+        </div>
+        <div class="hud-item" id="hud-lives-container">
+          <span class="hud-label">חיים:</span>
+          <span id="val-lives" class="hud-val">❤️❤️❤️</span>
+        </div>
+        <div class="hud-item" id="hud-timer-container" style="display:none;">
+          <span class="hud-label">זמן:</span>
+          <span id="val-timer" class="hud-val">60</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">רצף:</span>
+          <span id="val-streak" class="hud-val">0</span>
+        </div>
+      </div>
+
+      <!-- Map Container -->
+      <div class="map-wrapper">
+        <div id="map-container"></div>
+        <div id="map-offline-warning" class="map-overlay-warning hidden">
+          ⚠️ טעינת המפה נכשלה. אנא ודאו שאתם מחוברים לאינטרנט.
+        </div>
+        <div class="map-overlay-instructions">
+          ניתן לגרור ולבצע זום 🔍
+        </div>
+      </div>
+
+      <!-- Interaction Panel -->
+      <div class="control-panel">
+        <div id="interaction-area">
+          <!-- Dynamically populated options or ordering container -->
+        </div>
+        <button id="btn-exit" class="btn-secondary">יציאה לתפריט</button>
+      </div>
+    </section>
+
+    <!-- SCREEN 3: GAMEOVER -->
+    <section id="screen-gameover" class="screen hidden">
+      <div class="gameover-card card-glow">
+        <h2 class="gameover-title">המשחק הסתיים!</h2>
+        <p id="lbl-game-mode" class="gameover-mode">זהו את היישוב</p>
+        
+        <div class="score-display">
+          <div class="score-num" id="lbl-final-score">0</div>
+          <div class="score-lbl">נקודות</div>
+        </div>
+
+        <div id="new-hs-message" class="hs-glow"></div>
+
+        <div class="gameover-buttons">
+          <button id="btn-restart" class="btn-primary">שחקו שוב</button>
+          <button id="btn-go-home" class="btn-secondary">חזרה לתפריט הראשי</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>מפות ישראל אינטראקטיביות &copy; 2026 | מבוסס HTML5 מקומי</p>
+  </footer>
+
+  <!-- App Logic -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
