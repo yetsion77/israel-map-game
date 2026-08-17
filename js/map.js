@@ -22,30 +22,14 @@ export class SettlementMap {
       maxBoundsViscosity: 0.8
     });
 
-    // Add CartoDB Dark NoLabels Tile Layer (sleek, zero cities labeled)
-    const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    // Add CartoDB Light NoLabels Tile Layer (bright, high contrast, zero cities labeled)
+    const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
       maxZoom: 12,
       subdomains: 'abcd'
     }).addTo(this.map);
 
     this.markers = [];
     this.connections = [];
-
-    // Offline warning UI binding
-    const warningEl = document.getElementById('map-offline-warning');
-
-    if (!navigator.onLine && warningEl) {
-      warningEl.classList.remove('hidden');
-    }
-
-    window.addEventListener('online', () => {
-      if (warningEl) warningEl.classList.add('hidden');
-      tileLayer.redraw(); // Force reload tiles when coming back online
-    });
-
-    window.addEventListener('offline', () => {
-      if (warningEl) warningEl.classList.remove('hidden');
-    });
 
     // Ensure resizing handles map update
     window.addEventListener('resize', () => this.resize());

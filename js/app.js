@@ -358,7 +358,7 @@ class GameApp {
     // Set markers on map (generic glowing white markers, labeled A, B, C or no labels for guessing)
     const labels = ['א', 'ב', 'ג'];
     selected.forEach((s, idx) => {
-      this.map.addMarker(s.lat, s.lon, { color: '#ffffff', label: `?`, size: 8 });
+      this.map.addMarker(s.lat, s.lon, { color: '#3b82f6', label: `?`, size: 10 });
     });
     this.map.focusOnCoordinates(selected);
 
